@@ -11,6 +11,10 @@ const FarmSchema = new mongoose.Schema({
     lat: { type: Number },
     lng: { type: Number },
   },
+  boundary: {
+    type: { type: String, enum: ['Polygon'], default: 'Polygon' },
+    coordinates: { type: [[[Number]]], required: true }
+  },
   areaAcres: { type: Number },
   sugarcaneVariety: { type: String },
   soilType: { type: String },
@@ -18,6 +22,7 @@ const FarmSchema = new mongoose.Schema({
   plantingDate: { type: Date },
   cropAgeDays: { type: Number },
   irrigationMethod: { type: String },
+  pumpStatus: { type: String, enum: ['ON', 'OFF', 'UNKNOWN'], default: 'OFF' },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,10 +1,11 @@
 "use client";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Droplets, CloudSun, MapPin, Activity, ArrowUpRight } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
-const waterData = [
+const defaultWaterData = [
   { day: "Mon", usage: 120 },
   { day: "Tue", usage: 130 },
   { day: "Wed", usage: 0 },
@@ -15,6 +16,49 @@ const waterData = [
 ];
 
 export default function DashboardOverview() {
+  const [plots, setPlots] = useState<any[]>([]);
+  const [selectedPlot, setSelectedPlot] = useState<any>(null);
+  const [advisory, setAdvisory] = useState<any>(null);
+  const [telemetry, setTelemetry] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        const plotsRes = await fetch('/api/plots');
+        if (!plotsRes.ok) throw new Error("Failed to fetch plots");
+        const plotsData = await plotsRes.json();
+        setPlots(plotsData);
+
+        if (plotsData.length > 0) {
+          const firstPlot = plotsData[0];
+          setSelectedPlot(firstPlot);
+
+          // Fetch advisory and telemetry for the first plot
+          const plotId = firstPlot._id || firstPlot.id;
+          const [advRes, telRes] = await Promise.all([
+            fetch(`/api/plots/${plotId}/recommendations`),
+            fetch(`/api/plots/${plotId}/telemetry`)
+          ]);
+
+          if (advRes.ok) {
+            const advData = await advRes.json();
+            setAdvisory(advData);
+          }
+          if (telRes.ok) {
+            const telData = await telRes.json();
+            setTelemetry(telData);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, []);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -24,6 +68,35 @@ export default function DashboardOverview() {
             Welcome back! Here's what's happening with your sugarcane farms today.
           </p>
         </div>
+        {plots.length > 1 && (
+          <div className="flex gap-2">
+            <select
+              value={selectedPlot?._id || selectedPlot?.id || ""}
+              onChange={async (e) => {
+                const targetId = e.target.value;
+                const found = plots.find(p => (p._id || p.id) === targetId);
+                setSelectedPlot(found);
+                try {
+                  const [advRes, telRes] = await Promise.all([
+                    fetch(`/api/plots/${targetId}/recommendations`),
+                    fetch(`/api/plots/${targetId}/telemetry`)
+                  ]);
+                  if (advRes.ok) setAdvisory(await advRes.json());
+                  if (telRes.ok) setTelemetry(await telRes.json());
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="h-10 px-3 py-2 rounded-md border border-slate-800 bg-slate-900 text-white focus:outline-none text-sm"
+            >
+              {plots.map((p) => (
+                <option key={p._id || p.id} value={p._id || p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
@@ -35,10 +108,20 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Tomorrow, 6:00 AM</div>
+            <div className="text-2xl font-bold">
+              {advisory?.nextIrrigationDate
+                ? new Date(advisory.nextIrrigationDate).toLocaleDateString("en-US", {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                : "Tomorrow, 6:00 AM"}
+            </div>
             <p className="text-xs text-muted-foreground mt-1 flex items-center">
               <span className="text-emerald-500 flex items-center mr-1">
-                98% AI Confidence
+                Duration: {advisory?.durationHours || advisory?.models?.durationHours || 2.5} hrs
               </span>
             </p>
           </CardContent>
@@ -46,30 +129,34 @@ export default function DashboardOverview() {
 
         <Card className="glass-card hover:border-amber-500/30 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Weather Status</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Weather & Telemetry</CardTitle>
             <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center">
                <CloudSun className="h-4 w-4 text-amber-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">32°C, Mostly Sunny</div>
+            <div className="text-2xl font-bold">
+              {telemetry?.ambientTemperature ? `${telemetry.ambientTemperature}°C` : "32°C"}, {telemetry?.relativeHumidity ? `${telemetry.relativeHumidity}% RH` : "Mostly Sunny"}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              No rain expected in next 3 days
+              Rainfall 24h: {telemetry?.rainfall24h || telemetry?.rainfallGauge || 0} mm
             </p>
           </CardContent>
         </Card>
 
         <Card className="glass-card hover:border-sky-500/30 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Crop Health</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Crop Water Stress</CardTitle>
             <div className="h-8 w-8 rounded-full bg-sky-500/10 flex items-center justify-center">
                <Activity className="h-4 w-4 text-sky-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Optimal (94/100)</div>
+            <div className="text-2xl font-bold">
+              WSI: {selectedPlot?.waterStressIndex || advisory?.waterStressIndex || advisory?.models?.waterStressIndex || 0.45}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Vegetative Growth Phase
+              Soil Moisture 30cm: {telemetry?.soilMoisture30cm || 32}%
             </p>
           </CardContent>
         </Card>
@@ -82,9 +169,13 @@ export default function DashboardOverview() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">45.2 Tons/Acre</div>
+            <div className="text-2xl font-bold">
+              {advisory?.models?.expectedHarvestTonnageRange
+                ? `${advisory.models.expectedHarvestTonnageRange.min}-${advisory.models.expectedHarvestTonnageRange.max} Tons/ha`
+                : "45.2 Tons/Acre"}
+            </div>
             <p className="text-xs text-emerald-500 mt-1 flex items-center">
-              +4.1% vs last year
+              Crop Age: {selectedPlot?.cropAgeMonths || 6.2} months
             </p>
           </CardContent>
         </Card>
@@ -99,7 +190,7 @@ export default function DashboardOverview() {
           <CardContent className="pl-0">
             <div className="h-[300px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={waterData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <AreaChart data={defaultWaterData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
@@ -127,30 +218,49 @@ export default function DashboardOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              <div className="flex items-start">
-                <div className="h-2 w-2 rounded-full bg-primary mt-2 mr-4"></div>
-                <div>
-                  <h4 className="text-sm font-semibold">Irrigate Farm A</h4>
-                  <p className="text-sm text-muted-foreground mt-1">Apply 2 inches of water. Soil moisture is dropping below 40%.</p>
-                  <Badge variant="outline" className="mt-2 text-primary border-primary/30 bg-primary/5">High Priority</Badge>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <div className="h-2 w-2 rounded-full bg-amber-500 mt-2 mr-4"></div>
-                <div>
-                  <h4 className="text-sm font-semibold">Apply NPK Fertilizer</h4>
-                  <p className="text-sm text-muted-foreground mt-1">Crop has entered rapid growth phase. Recommended dose: 120kg/acre.</p>
-                  <Badge variant="outline" className="mt-2 text-amber-500 border-amber-500/30 bg-amber-500/5">Medium Priority</Badge>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <div className="h-2 w-2 rounded-full bg-sky-500 mt-2 mr-4"></div>
-                <div>
-                  <h4 className="text-sm font-semibold">Skip Irrigation Farm B</h4>
-                  <p className="text-sm text-muted-foreground mt-1">Rainfall detected (15mm) in the last 24 hours. Saving 4500 Liters of water.</p>
-                  <Badge variant="outline" className="mt-2 text-sky-500 border-sky-500/30 bg-sky-500/5">Automated Action</Badge>
-                </div>
-              </div>
+              {advisory ? (
+                <>
+                  <div className="flex items-start">
+                    <div className="h-2 w-2 rounded-full bg-primary mt-2 mr-4"></div>
+                    <div>
+                      <h4 className="text-sm font-semibold">Scheduled Irrigation</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {advisory.llmAdvisory?.en || advisory.llmAdvisories?.en || `Irrigate for ${advisory.durationHours || advisory.models?.durationHours} hours.`}
+                      </p>
+                      <Badge variant="outline" className="mt-2 text-primary border-primary/30 bg-primary/5">
+                        {advisory.status || advisory.override?.status || "PENDING"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {advisory.fertigation?.nutrients && advisory.fertigation.nutrients.length > 0 && (
+                    <div className="flex items-start">
+                      <div className="h-2 w-2 rounded-full bg-amber-500 mt-2 mr-4"></div>
+                      <div>
+                        <h4 className="text-sm font-semibold">Apply NPK Fertigation</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Dosage: {advisory.fertigation.nutrients.map((n: any) => `${n.amountKg}kg ${n.name}`).join(", ")}
+                        </p>
+                        <Badge variant="outline" className="mt-2 text-amber-500 border-amber-500/30 bg-amber-500/5">Medium Priority</Badge>
+                      </div>
+                    </div>
+                  )}
+
+                  {advisory.models?.predictedYieldLossPercentage > 0 && (
+                    <div className="flex items-start">
+                      <div className="h-2 w-2 rounded-full bg-sky-500 mt-2 mr-4"></div>
+                      <div>
+                        <h4 className="text-sm font-semibold">Yield Protection Advisory</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Delaying this cycle risks a {advisory.models.predictedYieldLossPercentage || advisory.yieldLossPercentageIfDelayed}% yield loss.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">Loading AI recommendations...</div>
+              )}
             </div>
           </CardContent>
         </Card>
