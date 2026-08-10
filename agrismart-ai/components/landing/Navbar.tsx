@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Leaf } from "lucide-react";
+import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 
 export function Navbar() {
   return (
@@ -19,14 +20,19 @@ export function Navbar() {
           <Link href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</Link>
         </div>
         <div className="flex items-center space-x-4">
-          <Link href="/login">
-            <Button variant="ghost">Log In</Button>
-          </Link>
-          <Link href="/signup">
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
-              Sign Up
-            </Button>
-          </Link>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button variant="ghost">Log In</Button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+                Sign Up
+              </Button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
         </div>
       </div>
     </nav>
