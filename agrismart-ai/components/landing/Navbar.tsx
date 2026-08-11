@@ -1,10 +1,35 @@
 "use client";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Leaf } from "lucide-react";
-import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
+
+interface SessionUser {
+  firstName?: string;
+  email?: string;
+}
 
 export function Navbar() {
+  const router = useRouter();
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
+    router.push("/");
+    router.refresh();
+  };
+
   return (
     <nav className="fixed top-0 w-full z-50 glass border-b border-border/40">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -20,19 +45,27 @@ export function Navbar() {
           <Link href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</Link>
         </div>
         <div className="flex items-center space-x-4">
-          <Show when="signed-out">
-            <SignInButton mode="modal">
-              <Button variant="ghost">Log In</Button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
-                Sign Up
+          {loading ? null : user ? (
+            <>
+              <Link href="/dashboard">
+                <Button variant="ghost">Dashboard</Button>
+              </Link>
+              <Button variant="outline" onClick={handleLogout}>
+                Log Out
               </Button>
-            </SignUpButton>
-          </Show>
-          <Show when="signed-in">
-            <UserButton />
-          </Show>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost">Log In</Button>
+              </Link>
+              <Link href="/login">
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+                  Sign Up
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

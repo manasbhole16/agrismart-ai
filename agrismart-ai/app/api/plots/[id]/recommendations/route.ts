@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/utils';
 import dbConnect from '@/lib/mongodb';
 import AIAdvisoryLog from '@/models/AIAdvisoryLog';
 
-const MOCK_RECOMMENDATIONS: Record<string, any> = {
+const MOCK_RECOMMENDATIONS: Record<string, unknown> = {
   "plot_pm_1235_0_a": {
     recommendationId: "rec_987654",
     plotId: "plot_pm_1235_0_a",
@@ -69,9 +70,9 @@ export async function GET(
       return NextResponse.json(MOCK_RECOMMENDATIONS[id] || MOCK_RECOMMENDATIONS["plot_pm_1235_0_a"]);
     }
     return NextResponse.json(advisory);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching advisory:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -88,7 +89,7 @@ export async function POST(
     }
     const advisory = await AIAdvisoryLog.create({ ...body, farmId: id });
     return NextResponse.json({ success: true, data: advisory });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 400 });
   }
 }

@@ -1,14 +1,33 @@
 "use client";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CloudSun, Droplets, Wind, Thermometer, Sun } from "lucide-react";
 
+interface ForecastDay {
+  day: number;
+  label: string;
+}
+
 export default function WeatherPage() {
+  // Date.now() is impure, so it's computed once via a lazy useState
+  // initializer (runs only on mount) rather than during the render body
+  // or via a setState-in-Effect pattern (which triggers an extra render).
+  const [forecastDays] = useState<ForecastDay[]>(() => {
+    const today = Date.now();
+    return [1, 2, 3, 4, 5, 6, 7].map((day) => ({
+      day,
+      label: new Date(today + day * 86400000).toLocaleDateString("en-US", {
+        weekday: "short",
+      }),
+    }));
+  });
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Weather Insights</h1>
         <p className="text-muted-foreground mt-1">
-          Hyper-local forecasting tailored for your farm's coordinates.
+          Hyper-local forecasting tailored for your farm&apos;s coordinates.
         </p>
       </div>
 
@@ -57,9 +76,9 @@ export default function WeatherPage() {
         </CardHeader>
         <CardContent>
           <div className="flex overflow-x-auto pb-4 gap-6">
-            {[1,2,3,4,5,6,7].map((day) => (
+            {forecastDays.map(({ day, label }) => (
               <div key={day} className="flex flex-col items-center min-w-[100px] p-4 rounded-xl border border-border/50 bg-muted/20">
-                <p className="text-sm font-medium mb-2">{new Date(Date.now() + day * 86400000).toLocaleDateString('en-US', {weekday: 'short'})}</p>
+                <p className="text-sm font-medium mb-2">{label}</p>
                 <CloudSun className="h-8 w-8 text-amber-500 mb-2" />
                 <p className="font-bold text-lg">34°</p>
                 <p className="text-xs text-muted-foreground">22°</p>

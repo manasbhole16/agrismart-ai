@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/utils';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
 import { comparePassword, signJWT } from '@/lib/jwt';
@@ -24,7 +25,14 @@ export async function POST(request: Request) {
         role: 'Farmer'
       };
       const token = await signJWT(mockUser);
-      return NextResponse.json({ success: true, user: mockUser, token });
+      const response = NextResponse.json({ success: true, user: mockUser, token });
+      response.cookies.set('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 86400,
+        path: '/'
+      });
+      return response;
     }
 
     const user = await User.findOne({ email });
@@ -56,8 +64,8 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

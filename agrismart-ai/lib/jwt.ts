@@ -1,4 +1,13 @@
-const JWT_SECRET = process.env.JWT_SECRET || 'agrismart-fallback-secret-key-32-chars';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function getSecret(): string {
+  if (!JWT_SECRET) {
+    throw new Error(
+      'Missing environment variable: JWT_SECRET. Set it in your .env.local (development) or your deployment platform\'s environment variables (production).'
+    );
+  }
+  return JWT_SECRET;
+}
 
 function base64UrlEncode(str: string): string {
   return btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -12,7 +21,20 @@ function base64UrlDecode(str: string): string {
   return atob(str);
 }
 
-export async function signJWT(payload: any, expiryInSeconds = 86400): Promise<string> {
+export interface JWTPayload {
+  _id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  exp?: number;
+  [key: string]: unknown;
+}
+
+export async function signJWT(
+  payload: Omit<JWTPayload, 'exp'>,
+  expiryInSeconds = 86400
+): Promise<string> {
   const header = { alg: 'HS256', typ: 'JWT' };
   const exp = Math.floor(Date.now() / 1000) + expiryInSeconds;
   const fullPayload = { ...payload, exp };
@@ -25,7 +47,7 @@ export async function signJWT(payload: any, expiryInSeconds = 86400): Promise<st
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(JWT_SECRET),
+    encoder.encode(getSecret()),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
@@ -45,7 +67,7 @@ export async function signJWT(payload: any, expiryInSeconds = 86400): Promise<st
   return `${dataToSign}.${encodedSignature}`;
 }
 
-export async function verifyJWT(token: string): Promise<any | null> {
+export async function verifyJWT(token: string): Promise<JWTPayload | null> {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -56,7 +78,7 @@ export async function verifyJWT(token: string): Promise<any | null> {
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',
-      encoder.encode(JWT_SECRET),
+      encoder.encode(getSecret()),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify']

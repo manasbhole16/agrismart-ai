@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Droplets, CloudSun, MapPin, Activity, ArrowUpRight } from "lucide-react";
+import { Droplets, CloudSun, Activity, ArrowUpRight } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
 const defaultWaterData = [
@@ -15,12 +15,54 @@ const defaultWaterData = [
   { day: "Sun", usage: 150 },
 ];
 
+interface Plot {
+  _id?: string;
+  id?: string;
+  name?: string;
+  farmerName?: string;
+  sugarcaneVariety?: string;
+  waterStressIndex?: number;
+  cropAgeMonths?: number;
+  [key: string]: unknown;
+}
+
+interface AdvisoryData {
+  nextIrrigationDate?: string;
+  status?: string;
+  durationHours?: number;
+  waterStressIndex?: number;
+  models?: {
+    durationHours?: number;
+    waterStressIndex?: number;
+    expectedHarvestTonnageRange?: { min?: number; max?: number };
+    predictedYieldLossPercentage?: number;
+  };
+  llmAdvisory?: { en?: string };
+  llmAdvisories?: { en?: string };
+  override?: { status?: string };
+  fertigation?: {
+    nutrients?: { name?: string; amountKg?: number }[];
+  };
+  yieldLossPercentageIfDelayed?: number;
+  [key: string]: unknown;
+}
+
+interface TelemetryData {
+  ambientTemperature?: number;
+  relativeHumidity?: number;
+  soilMoisture30cm?: number;
+  soilMoisture60cm?: number;
+  rainfall24h?: number;
+  rainfallGauge?: number;
+  [key: string]: unknown;
+}
+
 export default function DashboardOverview() {
-  const [plots, setPlots] = useState<any[]>([]);
-  const [selectedPlot, setSelectedPlot] = useState<any>(null);
-  const [advisory, setAdvisory] = useState<any>(null);
-  const [telemetry, setTelemetry] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [plots, setPlots] = useState<Plot[]>([]);
+  const [selectedPlot, setSelectedPlot] = useState<Plot | null>(null);
+  const [advisory, setAdvisory] = useState<AdvisoryData | null>(null);
+  const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadDashboardData() {
@@ -53,7 +95,7 @@ export default function DashboardOverview() {
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
     loadDashboardData();
@@ -63,9 +105,16 @@ export default function DashboardOverview() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Overview
+            {isLoading && (
+              <span className="text-xs font-normal text-muted-foreground animate-pulse">
+                Loading…
+              </span>
+            )}
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Welcome back! Here's what's happening with your sugarcane farms today.
+            Welcome back! Here&apos;s what&apos;s happening with your sugarcane farms today.
           </p>
         </div>
         {plots.length > 1 && (
@@ -75,7 +124,7 @@ export default function DashboardOverview() {
               onChange={async (e) => {
                 const targetId = e.target.value;
                 const found = plots.find(p => (p._id || p.id) === targetId);
-                setSelectedPlot(found);
+                setSelectedPlot(found ?? null);
                 try {
                   const [advRes, telRes] = await Promise.all([
                     fetch(`/api/plots/${targetId}/recommendations`),
@@ -185,7 +234,7 @@ export default function DashboardOverview() {
         <Card className="lg:col-span-4 glass-card">
           <CardHeader>
             <CardTitle>Water Usage Trend (Liters/Acre)</CardTitle>
-            <CardDescription>Your farm's irrigation water consumption over the last 7 days.</CardDescription>
+            <CardDescription>Your farm&apos;s irrigation water consumption over the last 7 days.</CardDescription>
           </CardHeader>
           <CardContent className="pl-0">
             <div className="h-[300px] w-full mt-4">
@@ -239,20 +288,20 @@ export default function DashboardOverview() {
                       <div>
                         <h4 className="text-sm font-semibold">Apply NPK Fertigation</h4>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Dosage: {advisory.fertigation.nutrients.map((n: any) => `${n.amountKg}kg ${n.name}`).join(", ")}
+                          Dosage: {advisory.fertigation.nutrients.map((n: { amountKg?: number; name?: string }) => `${n.amountKg}kg ${n.name}`).join(", ")}
                         </p>
                         <Badge variant="outline" className="mt-2 text-amber-500 border-amber-500/30 bg-amber-500/5">Medium Priority</Badge>
                       </div>
                     </div>
                   )}
 
-                  {advisory.models?.predictedYieldLossPercentage > 0 && (
+                  {(advisory.models?.predictedYieldLossPercentage ?? 0) > 0 && (
                     <div className="flex items-start">
                       <div className="h-2 w-2 rounded-full bg-sky-500 mt-2 mr-4"></div>
                       <div>
                         <h4 className="text-sm font-semibold">Yield Protection Advisory</h4>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Delaying this cycle risks a {advisory.models.predictedYieldLossPercentage || advisory.yieldLossPercentageIfDelayed}% yield loss.
+                          Delaying this cycle risks a {advisory.models?.predictedYieldLossPercentage || advisory.yieldLossPercentageIfDelayed}% yield loss.
                         </p>
                       </div>
                     </div>

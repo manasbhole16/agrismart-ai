@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Droplets, Sprout, Lock, Mail, User, AlertCircle, ArrowRight } from 'lucide-react';
+import { Sprout, Lock, Mail, User, AlertCircle, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getErrorMessage } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,8 +48,8 @@ export default function LoginPage() {
 
       // Redirect to dashboard
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || 'Authentication failed');
     } finally {
       setLoading(false);
     }

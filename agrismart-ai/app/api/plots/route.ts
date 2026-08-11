@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/utils';
 import dbConnect from '@/lib/mongodb';
 import Farm from '@/models/Farm';
 
@@ -65,7 +66,7 @@ export async function GET() {
       return NextResponse.json(MOCK_PLOTS);
     }
     return NextResponse.json(farms);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching plots:', error);
     return NextResponse.json(MOCK_PLOTS);
   }
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     }
     const farm = await Farm.create(body);
     return NextResponse.json({ success: true, data: farm });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 400 });
   }
 }

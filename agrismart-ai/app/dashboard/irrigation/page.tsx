@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Droplets, Settings, CheckCircle2, AlertTriangle, Info } from "lucide-react";
+import { Droplets, Settings, CheckCircle2, Info } from "lucide-react";
 
 export default function IrrigationPage() {
   return (

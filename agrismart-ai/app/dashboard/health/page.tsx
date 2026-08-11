@@ -1,7 +1,7 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Sprout, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Sprout, ShieldCheck } from "lucide-react";
 
 export default function HealthPage() {
   return (
